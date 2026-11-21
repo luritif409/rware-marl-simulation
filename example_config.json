@@ -1,0 +1,12 @@
+{
+  "width": 12,
+  "height": 10,
+  "n_shelves": 18,
+  "n_robots": 4,
+  "n_orders": 20,
+  "max_steps": 1000,
+  "congestion_weight": 2.0,
+  "congestion_radius": 2,
+  "repetitions": 10,
+  "seed": 42
+}
