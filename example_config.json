@@ -1,8 +1,11 @@
 {
-  "width": 12,
-  "height": 10,
+  "width": 10,
+  "height": 11,
+  "delivery_start": 0,
+  "delivery_end": 9,
   "n_shelves": 18,
   "n_robots": 4,
+  "request_queue_size": 4,
   "n_orders": 20,
   "max_steps": 1000,
   "congestion_weight": 2.0,
