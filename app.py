@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from warehouse_sim import SimulationConfig, compare_policies
+from warehouse_sim.config import WAREHOUSE_SIZES
 from warehouse_sim.simulation import demo_results
 from warehouse_sim.visualization import aggregate_results, comparison_chart, warehouse_animation
 
@@ -13,18 +14,37 @@ st.set_page_config(page_title="Simulasi Robot Gudang", page_icon="🤖", layout=
 
 st.title("Simulasi Penugasan Robot Gudang")
 st.caption(
-    "Perbandingan kebijakan baseline dan kontribusi usulan tanpa proses training. "
-    "Simulator grid ini terinspirasi oleh konsep RWARE."
+    "Perbandingan kebijakan baseline dan kontribusi usulan pada lingkungan RWARE "
+    "tanpa proses training."
 )
 
 with st.sidebar:
     st.header("Parameter simulasi")
-    width = st.number_input("Lebar gudang", 8, 30, 12)
-    height = st.number_input("Tinggi gudang", 8, 30, 10)
-    max_shelves = max(1, len(range(2, int(width) - 1, 3)) * len(range(1, int(height) - 3)))
-    n_shelves = st.number_input("Jumlah rak", 1, max_shelves, min(18, max_shelves))
+    warehouse_size = st.selectbox(
+        "Ukuran gudang",
+        list(WAREHOUSE_SIZES),
+        format_func=lambda name: f"{name} ({WAREHOUSE_SIZES[name][0]} × {WAREHOUSE_SIZES[name][1]})",
+    )
+    width, height = WAREHOUSE_SIZES[warehouse_size]
+    delivery_start, delivery_end = st.slider(
+        "Rentang kolom peletakan barang/pengantaran (baris bawah)",
+        min_value=0,
+        max_value=int(width) - 1,
+        value=(0, int(width) - 1),
+        help="Pilih satu kolom atau rentang kolom pada baris paling bawah gudang.",
+    )
+    max_shelves = sum(x % 3 != 0 for x in range(1, int(width) - 1)) * len(range(1, int(height) - 3))
+    n_shelves = st.number_input(
+        "Jumlah seluruh rak", 2, max_shelves, min(18, max_shelves),
+        help="Jumlah seluruh rak yang tersedia; batasnya mengikuti ukuran gudang terpilih.",
+    )
     n_robots = st.number_input("Jumlah robot", 1, int(width), min(4, int(width)))
-    n_orders = st.number_input("Jumlah pesanan", 1, 500, 20)
+    request_queue_size = st.number_input(
+        "Rak diminta serentak (R)", 1, int(n_shelves) - 1,
+        min(int(n_robots), int(n_shelves) - 1),
+        help="R berbeda dari jumlah seluruh rak. Normal: R=N; mudah: R=2N; sulit: R≈N/2.",
+    )
+    n_orders = st.number_input("Target pengantaran", 1, 500, 20)
     max_steps = st.number_input("Maksimum langkah", 10, 20_000, 1000, step=100)
     st.divider()
     congestion_weight = st.number_input("Bobot kepadatan (α)", 0.0, 20.0, 2.0, 0.5)
@@ -36,8 +56,11 @@ with st.sidebar:
 config = SimulationConfig(
     width=int(width),
     height=int(height),
+    delivery_start=int(delivery_start),
+    delivery_end=int(delivery_end),
     n_shelves=int(n_shelves),
     n_robots=int(n_robots),
+    request_queue_size=int(request_queue_size),
     n_orders=int(n_orders),
     max_steps=int(max_steps),
     congestion_weight=float(congestion_weight),
@@ -55,7 +78,7 @@ with st.expander("Definisi kebijakan dan metrik"):
         $S_{ij}=D_{ij}+\\alpha H_{ij}$, dengan $D_{ij}$ sebagai jarak dan
         $H_{ij}$ sebagai estimasi robot lain di sekitar jalur.
 
-        **Waktu selesai** dihitung dari awal simulasi hingga pesanan tiba di titik pengantaran.
+        **Waktu selesai** dihitung sejak rak diminta hingga tiba di titik pengantaran.
         **Langkah terhambat** bertambah ketika gerak robot ditolak karena konflik.
         **Jarak tempuh** adalah jumlah perpindahan sel yang berhasil.
         """
@@ -104,8 +127,8 @@ st.caption(
     "Tekan Play untuk kecepatan normal. Pilih Lambat, Normal, atau Cepat pada menu "
     "di grafik untuk langsung memutar pada kecepatan itu; Pause menghentikan animasi. "
     "Geser timeline untuk melihat langkah tertentu. "
-    "Warna robot: abu-abu = idle, hijau = menuju_rak, biru = menuju_pengantaran. "
-    "Kotak oranye menunjukkan barang yang dibawa."
+    "Warna robot: abu-abu = idle, hijau = menuju_rak, biru = menuju_pengantaran, "
+    "ungu = mengembalikan_rak. Rak merah sedang diminta; rak oranye sedang dibawa."
 )
 if stride > 1:
     st.info(

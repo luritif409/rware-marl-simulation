@@ -44,5 +44,3 @@ def shortest_path(
     return []
 
 
-def path_distance(path: list[Position]) -> int:
-    return max(0, len(path) - 1) if path else 10**9

@@ -1,11 +1,11 @@
 # Simulasi Penugasan Robot Gudang
 
-Aplikasi Streamlit untuk membandingkan dua kebijakan penugasan robot tanpa proses training:
+Aplikasi Streamlit untuk membandingkan dua pengendali heuristik pada lingkungan Multi-Robot Warehouse (RWARE) tanpa proses training:
 
 1. **Baseline** menggunakan heuristik jarak lintasan minimum.
 2. **Kontribusi usulan** menggunakan skor `jarak + α × kepadatan jalur`.
 
-Simulator ini mengikuti konsep umum Multi-Robot Warehouse (RWARE), tetapi merupakan simulator grid mandiri agar parameter penugasan dan evaluasi dapat dikustomisasi. Aplikasi ini bukan implementasi resmi atau reproduksi penuh RWARE/MAPPO.
+Mesin simulasi menggunakan paket [RWARE](https://github.com/uoe-agents/robotic-warehouse) pada commit yang dipatok di `requirements.txt`. Layout dibuat khusus: rak berada di area gudang dan semua titik pengantaran dipilih dari baris paling bawah. Pengendali Baseline memilih rak yang diminta berdasarkan jarak lintasan; Kontribusi usulan menambahkan estimasi kepadatan robot di sepanjang lintasan. Keduanya memakai aturan gerak, pengambilan, pengantaran, dan pengembalian rak milik RWARE. Aplikasi ini tidak melatih model MARL atau menjalankan MAPPO.
 
 ## Menjalankan aplikasi
 
@@ -42,26 +42,33 @@ Petunjuk lengkap tersedia di [`DEPLOY_STREAMLIT_CLOUD.md`](DEPLOY_STREAMLIT_CLOU
 
 ## Parameter input
 
-- Lebar dan tinggi gudang
-- Jumlah rak, robot, dan pesanan
+- Ukuran gudang: Tiny (10 × 11), Small (10 × 20), Medium (16 × 20), atau Large (16 × 29)
+- Rentang kolom peletakan barang/pengantaran pada baris paling bawah. Satu kolom atau beberapa kolom berurutan dapat dipilih.
+- Jumlah rak, robot (N), rak diminta serentak (R), dan target pengantaran
 - Maksimum langkah simulasi
 - Bobot kepadatan α
 - Radius pengamatan kepadatan
 - Jumlah pengulangan
 - Seed awal
 
-Kedua kebijakan selalu dijalankan menggunakan seed dan urutan pesanan yang sama sehingga perbandingannya berpasangan dan lebih adil.
+**Jumlah seluruh rak** dan **R** berbeda. Batas jumlah rak mengikuti ukuran gudang yang dipilih, sementara nilai awalnya 18. R menentukan berapa rak yang diminta secara bersamaan: normal `R=N`, mudah `R=2N`, dan sulit sekitar `R=N/2`, selama R lebih kecil daripada jumlah seluruh rak. Pilihan ukuran menetapkan dimensi grid; susunan rak dan titik pengantaran tetap dibuat oleh layout khusus aplikasi.
+
+Kedua kebijakan dijalankan dengan seed, layout, posisi awal robot, dan antrean permintaan awal yang sama. Antrean setelah pengantaran dapat berbeda karena permintaan baru dipilih RWARE berdasarkan keadaan antrean pada saat itu.
+
+RWARE mengisi ulang antrean rak yang diminta setelah setiap pengantaran. Simulasi berhenti saat target pengantaran tercapai atau batas langkah habis. Untuk setiap rak yang telah diantar, robot mengembalikannya ke posisi awal sebelum mengambil tugas berikutnya.
+
+Target pengantaran adalah batas evaluasi aplikasi, bukan parameter bawaan RWARE. Kedua pengendali heuristik memakai keadaan lengkap lingkungan untuk memilih rak dan jalur; ini tidak menguji kebijakan MARL dengan observasi lokal terbatas.
 
 Setelah menekan **Jalankan simulasi**, aplikasi menghitung hasil seluruh pengulangan terlebih dahulu. Di bagian **Visualisasi kasus pertama**, pilih kebijakan **Baseline** atau **Kontribusi usulan**. Plotly menerima riwayat pengulangan pertama sebagai satu Figure berisi `frames`; setelah grafik tampil, tombol **Play**, **Pause**, dan slider timeline bekerja di browser tanpa menjalankan ulang Streamlit pada setiap langkah. Menu kecepatan **Lambat**, **Normal**, atau **Cepat** langsung memutar animasi pada kecepatan yang dipilih. Tombol Play memakai kecepatan Normal.
 
-Judul grafik menampilkan langkah saat ini dan jumlah pesanan selesai. Robot berlabel R1, R2, dan seterusnya; warna abu-abu berarti `idle`, hijau `menuju_rak`, dan biru `menuju_pengantaran`. Arahkan kursor ke robot untuk melihat status dan ID pesanan. Kotak oranye di samping robot menunjukkan barang yang sedang dibawa.
+Judul grafik menampilkan langkah saat ini dan jumlah pengantaran selesai. Robot berlabel R1, R2, dan seterusnya; warna abu-abu berarti `idle`, hijau `menuju_rak`, biru `menuju_pengantaran`, dan ungu `mengembalikan_rak`. Rak merah sedang diminta, sedangkan rak oranye sedang dibawa. Arahkan kursor ke robot untuk melihat status dan ID rak target.
 
 Untuk riwayat panjang, visualisasi mengambil maksimal 300 frame, selalu termasuk langkah 0 dan langkah terakhir. Aplikasi menampilkan interval sampling di atas grafik. Sampling hanya berlaku untuk animasi; tabel, grafik evaluasi, dan unduhan CSV tetap memakai hasil simulasi lengkap.
 
 ## Metrik evaluasi
 
-- **Rata-rata waktu penyelesaian pesanan:** langkah dari awal simulasi sampai pesanan diantar.
-- **Langkah terhambat:** gerakan yang ditolak akibat konflik antarro­bot.
+- **Rata-rata waktu penyelesaian pesanan:** langkah sejak rak masuk antrean permintaan hingga diantar.
+- **Langkah terhambat:** aksi maju yang tidak menghasilkan perpindahan karena konflik atau halangan.
 - **Jarak tempuh:** jumlah perpindahan sel yang berhasil.
 - **Pesanan selesai:** jumlah pesanan yang sampai ke titik pengantaran.
 - **Throughput:** pesanan selesai dibagi jumlah langkah simulasi.

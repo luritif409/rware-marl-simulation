@@ -7,19 +7,14 @@ from .models import Layout, Position
 
 
 def _candidate_shelves(width: int, height: int) -> list[Position]:
-    """Rak ditempatkan pada kolom berselang agar lorong tetap terhubung."""
+    """Dua kolom rak per blok, dipisahkan lorong seperti layout RWARE."""
     cells: list[Position] = []
-    for x in range(2, width - 1, 3):
+    for x in range(1, width - 1):
+        if x % 3 == 0:
+            continue
         for y in range(1, height - 3):
             cells.append((x, y))
     return cells
-
-
-def _pickup_for(shelf: Position, width: int) -> Position:
-    x, y = shelf
-    if x + 1 < width:
-        return (x + 1, y)
-    return (x - 1, y)
 
 
 def generate_layout(config: SimulationConfig, seed: int) -> Layout:
@@ -32,25 +27,22 @@ def generate_layout(config: SimulationConfig, seed: int) -> Layout:
             f"{config.width} × {config.height}."
         )
     shelves = sorted(rng.sample(candidates, config.n_shelves))
-    pickups = {shelf: _pickup_for(shelf, config.width) for shelf in shelves}
-
-    # Zona bawah dipakai sebagai area awal robot dan titik pengantaran.
-    goal_y = config.height - 1
-    # Satu stasiun pengantaran per kolom memungkinkan eksperimen hingga
-    # sejumlah robot yang sama dengan lebar gudang tanpa menumpuk di satu titik.
-    goals = [(x, goal_y) for x in range(config.width)]
-    start_y = config.height - 2
-    start_candidates = [(x, start_y) for x in range(config.width)]
-    if config.n_robots > len(start_candidates):
-        raise ValueError(
-            f"Jumlah robot terlalu besar. Maksimum {len(start_candidates)} untuk lebar gudang ini."
-        )
-    robot_starts = rng.sample(start_candidates, config.n_robots)
+    # Titik pengantaran selalu berada pada baris paling bawah.
+    delivery_end = config.width - 1 if config.delivery_end is None else config.delivery_end
+    goals = [(x, config.height - 1) for x in range(config.delivery_start, delivery_end + 1)]
     return Layout(
         width=config.width,
         height=config.height,
         shelves=shelves,
-        pickups=pickups,
         goals=goals,
-        robot_starts=robot_starts,
     )
+
+
+def to_rware_layout(layout: Layout) -> str:
+    """Ubah layout menjadi peta RWARE; g selalu di baris bawah."""
+    cells = [["." for _ in range(layout.width)] for _ in range(layout.height)]
+    for x, y in layout.shelves:
+        cells[y][x] = "x"
+    for x, y in layout.goals:
+        cells[y][x] = "g"
+    return "\n".join("".join(row) for row in cells)

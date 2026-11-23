@@ -10,30 +10,7 @@ class RobotState(str, Enum):
     IDLE = "idle"
     TO_SHELF = "menuju_rak"
     TO_GOAL = "menuju_pengantaran"
-
-
-@dataclass
-class Order:
-    order_id: int
-    shelf: Position
-    pickup: Position
-    created_at: int = 0
-    assigned_robot: int | None = None
-    assigned_at: int | None = None
-    completed_at: int | None = None
-
-
-@dataclass
-class Robot:
-    robot_id: int
-    position: Position
-    state: RobotState = RobotState.IDLE
-    order_id: int | None = None
-    target_goal: Position | None = None
-    route: list[Position] = field(default_factory=list)
-    distance: int = 0
-    blocked_steps: int = 0
-    consecutive_blocked: int = 0
+    TO_RETURN = "mengembalikan_rak"
 
 
 @dataclass
@@ -41,13 +18,7 @@ class Layout:
     width: int
     height: int
     shelves: list[Position]
-    pickups: dict[Position, Position]
     goals: list[Position]
-    robot_starts: list[Position]
-
-    @property
-    def blocked_cells(self) -> set[Position]:
-        return set(self.shelves)
 
 
 @dataclass

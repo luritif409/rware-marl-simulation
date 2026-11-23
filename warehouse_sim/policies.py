@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from .models import Layout, Order, Position, Robot
-from .pathfinding import path_distance, shortest_path
+from .models import Position
 
 
 def congestion_score(
@@ -19,35 +18,3 @@ def congestion_score(
     return score
 
 
-def choose_assignment(
-    robot: Robot,
-    pending_orders: list[Order],
-    robots: list[Robot],
-    layout: Layout,
-    policy: str,
-    congestion_weight: float,
-    congestion_radius: int,
-) -> Order | None:
-    best_order: Order | None = None
-    best_score = float("inf")
-    robot_positions = [r.position for r in robots if r.robot_id != robot.robot_id]
-    for order in pending_orders:
-        path = shortest_path(
-            robot.position,
-            order.pickup,
-            layout.width,
-            layout.height,
-            layout.blocked_cells,
-        )
-        distance = path_distance(path)
-        score = float(distance)
-        if policy == "Kontribusi usulan":
-            score += congestion_weight * congestion_score(
-                path, robot_positions, congestion_radius
-            )
-        tie_break = order.order_id / 1_000_000
-        score += tie_break
-        if score < best_score:
-            best_score = score
-            best_order = order
-    return best_order

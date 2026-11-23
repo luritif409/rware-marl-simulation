@@ -12,6 +12,7 @@ STATUS_COLORS = {
     RobotState.IDLE.value: "#718096",
     RobotState.TO_SHELF.value: "#2A9D8F",
     RobotState.TO_GOAL.value: "#2563EB",
+    RobotState.TO_RETURN.value: "#7C3AED",
 }
 ANIMATION_SPEEDS = {"Lambat": 600, "Normal": 300, "Cepat": 120}
 
@@ -52,17 +53,7 @@ def comparison_chart(summary: pd.DataFrame, metric: str):
 
 def warehouse_figure(layout, frame: dict, title: str):
     fig = go.Figure()
-    if layout.shelves:
-        fig.add_trace(
-            go.Scatter(
-                x=[p[0] for p in layout.shelves],
-                y=[p[1] for p in layout.shelves],
-                mode="markers",
-                name="Rak",
-                marker=dict(symbol="square", size=28, color="#8D6E63"),
-                hovertemplate="Rak (%{x}, %{y})<extra></extra>",
-            )
-        )
+    fig.add_trace(_shelf_trace(frame))
     fig.add_trace(
         go.Scatter(
             x=[p[0] for p in layout.goals],
@@ -88,6 +79,27 @@ def warehouse_figure(layout, frame: dict, title: str):
     return fig
 
 
+def _shelf_trace(frame: dict) -> go.Scatter:
+    shelves = frame["shelves"]
+    return go.Scatter(
+        x=[shelf["x"] for shelf in shelves],
+        y=[shelf["y"] for shelf in shelves],
+        mode="markers",
+        name="Rak",
+        marker=dict(
+            symbol="square",
+            size=25,
+            color=[
+                "#E76F00" if shelf["carried"] else
+                "#D62828" if shelf["requested"] else "#8D6E63"
+                for shelf in shelves
+            ],
+        ),
+        customdata=[shelf["id"] for shelf in shelves],
+        hovertemplate="Rak %{customdata} (%{x}, %{y})<extra></extra>",
+    )
+
+
 def _robot_trace(frame: dict) -> go.Scatter:
     robots = frame["robots"]
     return go.Scatter(
@@ -106,7 +118,7 @@ def _robot_trace(frame: dict) -> go.Scatter:
         customdata=[[robot["state"], robot["order_id"]] for robot in robots],
         hovertemplate=(
             "%{text}<br>Status: %{customdata[0]}"
-            "<br>Pesanan: %{customdata[1]}<extra></extra>"
+            "<br>Rak target: %{customdata[1]}<extra></extra>"
         ),
     )
 
@@ -161,8 +173,8 @@ def warehouse_animation(
     fig.frames = [
         go.Frame(
             name=str(frame["step"]),
-            data=[_robot_trace(frame), _cargo_trace(frame)],
-            traces=[2, 3],
+            data=[_shelf_trace(frame), _robot_trace(frame), _cargo_trace(frame)],
+            traces=[0, 2, 3],
             layout=go.Layout(title_text=frame_title(frame)),
         )
         for frame in sampled
